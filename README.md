@@ -5,7 +5,7 @@
 一颗由九千粒星光组成的粒子圣诞树：摄像头识别手掌，**握拳汇聚成树、摊手粒子散升、捏指弹出照片**。照片、音乐、粒子与礼盒样式全部可自定义；照片会缓存在浏览器里，下次用同一个浏览器打开仍在。
 
 - 在线预览（GitHub Pages）：<https://vixzelq.github.io/christmas-tree/>
-- 仓库：<https://github.com/nobody-r/christmas-tree.git>
+- 仓库：<https://github.com/vixzelq/christmas-tree.git>
 
 ![圣诞光影树](docs/preview-tree.jpg)
 
