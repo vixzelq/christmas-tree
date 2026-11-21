@@ -74,27 +74,6 @@ node serve.mjs           # 打开 http://127.0.0.1:8080
 | 拖拽 / 滚轮 | 旋转 / 缩放 |
 | Esc | 关闭照片或设置 |
 
-## 部署到 GitHub Pages
-
-这个项目是纯静态站点，不需要构建：
-
-1. 把本目录下的所有文件（`index.html`、`css/`、`js/`、`vendor/`、`assets/` 等）推送到仓库根目录；
-2. GitHub 仓库 **Settings → Pages**，Source 选择 `Deploy from a branch`，分支 `main`、目录 `/ (root)`；
-3. 等待一两分钟，访问 `https://<用户名>.github.io/christmas-tree/`。
-
-```bash
-# 如果你本地有 git
-git add .
-git commit -m "feat: gesture christmas tree"
-git push origin main
-```
-
-`.nojekyll` 已包含在项目里，告诉 GitHub Pages 跳过 Jekyll 处理。
-
-> 如果仓库里还留着旧的打包产物（`assets/`、`audio/`、`mediapipe/hands/` 等），现在可以删掉，新版本已经不再需要它们。
-
-> 摄像头需要 HTTPS：GitHub Pages 默认就是 HTTPS，没有问题。
-
 ## 目录结构
 
 ```
@@ -123,13 +102,6 @@ christmas-tree/
 ```
 
 所有第三方依赖都已放进仓库，**不依赖任何 CDN**，国内网络也能正常加载。
-
-## 别人也能用吗
-
-可以，而且不用注册：
-
-- 任何人打开站点，都能添加自己的照片、换配色、放烟花，做一棵自己的树。照片只存在各自的浏览器里，互不影响。
-- 想拥有一个完全独立的站点：Fork 这个仓库 → 开启 Pages 即可。
 
 ## 手势怎么调得更准
 
