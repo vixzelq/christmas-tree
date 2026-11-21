@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#050810" />
+<title>圣诞光影树 · 伸手就能拥有一棵圣诞树</title>
+<meta name="description" content="手势控制的粒子圣诞树：握拳汇聚成树，摊手粒子散升，捏指弹出照片。支持自定义相片、音乐、粒子与礼盒，照片会缓存在浏览器中。" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='78' font-size='78'%3E%E2%9C%A8%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="./css/style.css" />
+</head>
+<body class="is-loading">
+
+<noscript>
+  <div style="position:fixed;inset:0;z-index:99;display:grid;place-content:center;gap:12px;background:#04070e;color:#f7f1e6;font-family:system-ui,sans-serif;text-align:center;padding:24px">
+    <p style="font-size:20px;margin:0">请开启 JavaScript</p>
+    <p style="font-size:13px;color:#b9b0a2;margin:0">这棵圣诞树需要 JavaScript 才能点亮。</p>
+  </div>
+</noscript>
+
+<!-- 背景：极光与夜空 -->
+<div class="backdrop" aria-hidden="true">
+  <div class="backdrop__vignette"></div>
+  <div class="backdrop__merry">
+    <span class="backdrop__merry-line">Merry</span>
+    <span class="backdrop__merry-line backdrop__merry-line--italic">Christmas</span>
+  </div>
+  <div class="backdrop__aurora aurora-1"></div>
+  <div class="backdrop__aurora aurora-2"></div>
+  <div class="backdrop__aurora aurora-3"></div>
+  <div class="backdrop__grain"></div>
+</div>
+
+<!-- WebGL 场景 -->
+<canvas id="scene" class="scene" aria-label="粒子圣诞树场景"></canvas>
+
+<!-- 2D 飘雪 -->
+<canvas id="snow" class="snow" aria-hidden="true"></canvas>
+
+<!-- 烟花 -->
+<canvas id="fireworks" class="fireworks" aria-hidden="true"></canvas>
+
+<!-- 捏指时的虚拟光标 -->
+<div id="hand-cursor" class="hand-cursor" aria-hidden="true">
+  <span class="hand-cursor__ring"></span>
+  <span class="hand-cursor__dot"></span>
+  <span class="hand-cursor__label">捏指选照片</span>
+</div>
+
+<!-- 照片卡片层 -->
+<div id="photo-layer" class="photo-layer" aria-live="off"></div>
+
+<!-- 主界面 -->
+<div id="ui" class="ui" aria-hidden="true">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand__star" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M12 2.2l2.4 6.3 6.7.4-5.2 4.3 1.7 6.5L12 16.1 6.4 19.7l1.7-6.5L2.9 8.9l6.7-.4z"/></svg>
+      </span>
+      <div class="brand__text">
+        <span class="brand__en">Merry Christmas</span>
+        <span class="brand__cn">圣诞光影树</span>
+      </div>
+    </div>
+
+    <div class="topbar__actions">
+      <button id="btn-music" class="icon-btn" type="button" aria-pressed="false" title="音乐 (M)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18.5a2.5 2.5 0 1 1-2.5-2.5c.35 0 .7.07 1 .2V5.4l9-2v10.6a2.5 2.5 0 1 1-2.5-2.5c.35 0 .7.07 1 .2V7.2L9 8.7z"/></svg>
+        <span class="icon-btn__dot" aria-hidden="true"></span>
+      </button>
+      <button id="btn-panel" class="icon-btn" type="button" aria-expanded="false" aria-controls="panel" title="设置">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.6a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8zm9 4.3v-1.8l-2.1-.7a7.2 7.2 0 0 0-.7-1.7l1-2-1.3-1.3-2 1a7.2 7.2 0 0 0-1.7-.7L13.5 3h-1.8l-.7 2.1c-.6.2-1.1.4-1.7.7l-2-1L6 6.1l1 2c-.3.5-.5 1.1-.7 1.7L4.2 10.5v1.8l2.1.7c.2.6.4 1.2.7 1.7l-1 2 1.3 1.4 2-1c.5.3 1.1.6 1.7.7l.7 2.1h1.8l.7-2.1c.6-.2 1.2-.4 1.7-.7l2 1 1.3-1.4-1-2c.3-.5.5-1.1.7-1.7z"/></svg>
+      </button>
+      <button id="btn-full" class="icon-btn" type="button" title="全屏 (F)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5v2H6v3zm16 0V4h-5v2h3v3zM4 15v5h5v-2H6v-3zm16 0v5h-5v-2h3v-3z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- 手势状态 -->
+  <div class="gesture-hud" id="gesture-hud">
+    <div class="gesture-hud__hand" aria-hidden="true">
+      <svg viewBox="0 0 48 48" class="hand-icon" data-state="idle">
+        <g class="hand-icon__fingers">
+          <rect x="13" y="12" width="5" height="18" rx="2.5"/>
+          <rect x="19.5" y="8.5" width="5" height="21" rx="2.5"/>
+          <rect x="26" y="10" width="5" height="20" rx="2.5"/>
+          <rect x="32" y="14" width="4.5" height="16" rx="2.25"/>
+        </g>
+        <path d="M12 30c0-3 2-5 5-5h14c3 0 5 2 5 5v3c0 4-3 7-7 7h-8c-4 0-7-3-7-7z" class="hand-icon__palm"/>
+      </svg>
+    </div>
+    <div class="gesture-hud__status">
+      <span class="gesture-hud__label" id="gesture-label">等待手势</span>
+      <span class="gesture-hud__hint" id="gesture-hint">握拳成树 · 摊手散开 · 捏指看照片</span>
+    </div>
+    <div class="gesture-hud__meter" aria-hidden="true"><i id="gesture-meter"></i></div>
+  </div>
+
+  <!-- 摄像头预览 -->
+  <div class="camera-card" id="camera-card" hidden>
+    <div class="camera-card__frame">
+      <video id="camera" playsinline muted></video>
+      <canvas id="camera-overlay" class="camera-card__overlay"></canvas>
+      <div class="camera-card__scan"></div>
+      <span class="camera-card__rec"><i></i>本地识别</span>
+    </div>
+    <button class="camera-card__close" id="btn-camera-close" type="button" aria-label="关闭摄像头预览">
+      <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+
+  <!-- 鼠标/键盘快捷操作 -->
+  <div class="quickbar" id="quickbar">
+    <button class="quick" data-action="gather" type="button"><span>握拳</span>汇聚成树</button>
+    <span class="quick__sep" aria-hidden="true"></span>
+    <button class="quick" data-action="scatter" type="button"><span>摊手</span>粒子散升</button>
+    <span class="quick__sep" aria-hidden="true"></span>
+    <button class="quick" data-action="photo" type="button"><span>捏指</span>弹出照片</button>
+  </div>
+
+  <div class="tips" id="tips">
+    <span>拖拽旋转</span><i>·</i><span>滚轮缩放</span><i>·</i><span>悬停点亮微光</span>
+  </div>
+
+  <!-- 侧边手势说明 -->
+  <aside class="gesture-guide" id="gesture-guide" aria-label="手势说明">
+    <button class="gesture-guide__toggle" id="guide-toggle" type="button" aria-expanded="true" aria-controls="guide-panel">
+      <span class="gesture-guide__toggle-text">手势</span>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+    </button>
+    <div class="gesture-guide__panel" id="guide-panel">
+      <p class="gesture-guide__eyebrow">Gestures</p>
+      <ul class="gesture-guide__list">
+        <li data-gesture="fist">
+          <span class="gg-icon">✊</span>
+          <span class="gg-text"><b>握拳</b><i>汇成树 · 移动旋转</i></span>
+        </li>
+        <li data-gesture="palm">
+          <span class="gg-icon">🖐</span>
+          <span class="gg-text"><b>摊手</b><i>粒子散开</i></span>
+        </li>
+        <li data-gesture="pinch">
+          <span class="gg-icon">🤏</span>
+          <span class="gg-text"><b>捏指</b><i>光标选照片放大</i></span>
+        </li>
+        <li data-gesture="point">
+          <span class="gg-icon">☝️</span>
+          <span class="gg-text"><b>一指</b><i>切换粒子与礼盒配色</i></span>
+        </li>
+        <li data-gesture="peace">
+          <span class="gg-icon">✌️</span>
+          <span class="gg-text"><b>两指</b><i>开始 / 停止下雪</i></span>
+        </li>
+        <li data-gesture="three">
+          <span class="gg-icon">🤟</span>
+          <span class="gg-text"><b>三指</b><i>开始 / 停止烟花</i></span>
+        </li>
+      </ul>
+      <p class="gesture-guide__hint">手掌抬到镜头前，状态显示在下方</p>
+    </div>
+  </aside>
+</div>
+
+<!-- 设置面板 -->
+<aside id="panel" class="panel" aria-hidden="true" aria-label="自定义设置">
+  <div class="panel__head">
+    <div>
+      <p class="panel__eyebrow">Atelier</p>
+      <h2 class="panel__title">定制你的圣诞树</h2>
+    </div>
+    <button id="btn-panel-close" class="icon-btn" type="button" aria-label="关闭设置">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+
+  <div class="panel__body">
+    <details class="sect" open data-sect="photos">
+      <summary>
+        <span class="sect__icon">✦</span>
+        <span class="sect__title">照片</span>
+        <span class="sect__meta" id="photo-count">0 / 12</span>
+        <svg class="sect__chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+      </summary>
+      <div class="sect__body">
+        <p class="sect__desc">捏指时，照片会从树中飞出。照片只保存在你的浏览器里。</p>
+        <label class="dropzone" id="dropzone" for="photo-input">
+          <input id="photo-input" type="file" accept="image/*" multiple hidden />
+          <span class="dropzone__icon">
+            <svg viewBox="0 0 24 24"><path d="M12 16V4m0 0L7 9m5-5l5 5"/><path d="M4 15v3.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V15"/></svg>
+          </span>
+          <span class="dropzone__title">拖入照片 / 点击选择</span>
+          <span class="dropzone__hint">建议 4 张以上，支持 JPG · PNG · WebP</span>
+        </label>
+        <div class="photo-grid" id="photo-grid"></div>
+        <div class="row">
+          <label class="field">
+            <span class="field__label">相框样式</span>
+            <select id="frame-style" class="select">
+              <option value="polaroid">宝丽来 · 留白</option>
+              <option value="gold">金边 · 古典</option>
+              <option value="glass">极光玻璃</option>
+              <option value="wreath">花环暗纹</option>
+            </select>
+          </label>
+        </div>
+        <button class="btn btn--ghost btn--danger" id="btn-clear-photos" type="button">清空全部照片</button>
+      </div>
+    </details>
+
+    <details class="sect" open data-sect="music">
+      <summary>
+        <span class="sect__icon">♪</span>
+        <span class="sect__title">音乐</span>
+        <span class="sect__meta" id="music-meta">未播放</span>
+        <svg class="sect__chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+      </summary>
+      <div class="sect__body">
+        <p class="sect__desc">粒子会随节拍呼吸、礼盒会随鼓点跳动。</p>
+        <div class="track-list" id="track-list">
+          <button class="track" data-track="jingle" type="button">
+            <span class="track__play" aria-hidden="true">▶</span>
+            <span class="track__name">铃儿响叮当</span>
+            <span class="track__style">合成 · 轻快</span>
+          </button>
+          <button class="track" data-track="silent" type="button">
+            <span class="track__play" aria-hidden="true">▶</span>
+            <span class="track__name">平安夜</span>
+            <span class="track__style">合成 · 温柔</span>
+          </button>
+          <button class="track" data-track="custom" type="button">
+            <span class="track__play" aria-hidden="true">▶</span>
+            <span class="track__name" id="custom-track-name">上传我的音乐</span>
+            <span class="track__style">MP3 · M4A · WAV</span>
+          </button>
+          <input id="music-input" type="file" accept="audio/*" hidden />
+        </div>
+        <div class="row row--split">
+          <label class="field field--range">
+            <span class="field__label">音量 <b id="volume-val">60</b></span>
+            <input id="volume" type="range" min="0" max="100" value="60" />
+          </label>
+          <label class="field field--range">
+            <span class="field__label">灵敏度 <b id="sensitivity-val">70</b></span>
+            <input id="sensitivity" type="range" min="0" max="100" value="70" />
+          </label>
+        </div>
+        <div class="eq" id="eq" aria-hidden="true"></div>
+      </div>
+    </details>
+
+    <details class="sect" open data-sect="particles">
+      <summary>
+        <span class="sect__icon">✧</span>
+        <span class="sect__title">粒子</span>
+        <span class="sect__meta" id="palette-meta">金辉圣诞</span>
+        <svg class="sect__chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+      </summary>
+      <div class="sect__body">
+        <div class="swatches" id="palette-list">
+          <button class="swatch" data-palette="gold" type="button" data-active="true">
+            <span class="swatch__dots"><i style="--c:#ffd98a"></i><i style="--c:#57e6a6"></i><i style="--c:#ff5a6e"></i></span>
+            <span class="swatch__name">金辉圣诞</span>
+          </button>
+          <button class="swatch" data-palette="aurora" type="button">
+            <span class="swatch__dots"><i style="--c:#7cf2d4"></i><i style="--c:#8ea7ff"></i><i style="--c:#c98cff"></i></span>
+            <span class="swatch__name">极光雪松</span>
+          </button>
+          <button class="swatch" data-palette="rose" type="button">
+            <span class="swatch__dots"><i style="--c:#ffb3c6"></i><i style="--c:#ffd98a"></i><i style="--c:#ff7a8a"></i></span>
+            <span class="swatch__name">玫瑰颂歌</span>
+          </button>
+          <button class="swatch" data-palette="ice" type="button">
+            <span class="swatch__dots"><i style="--c:#cfe9ff"></i><i style="--c:#8fd8ff"></i><i style="--c:#e8f6ff"></i></span>
+            <span class="swatch__name">冰晶幻境</span>
+          </button>
+        </div>
+        <label class="field field--range">
+          <span class="field__label">粒子数量 <b id="count-val">9000</b></span>
+          <input id="particle-count" type="range" min="2500" max="16000" step="500" value="9000" />
+        </label>
+        <label class="field field--range">
+          <span class="field__label">光晕强度 <b id="glow-val">70</b></span>
+          <input id="glow" type="range" min="0" max="100" value="70" />
+        </label>
+        <label class="field field--range">
+          <span class="field__label">飘雪密度 <b id="snow-val">50</b></span>
+          <input id="snowfall" type="range" min="0" max="100" value="50" />
+        </label>
+      </div>
+    </details>
+
+    <details class="sect" data-sect="gifts">
+      <summary>
+        <span class="sect__icon">❥</span>
+        <span class="sect__title">礼盒</span>
+        <span class="sect__meta" id="gift-meta">红金经典</span>
+        <svg class="sect__chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+      </summary>
+      <div class="sect__body">
+        <div class="swatches swatches--wide" id="gift-list">
+          <button class="swatch" data-gift="classic" type="button" data-active="true">
+            <span class="swatch__box" style="--box:#c8202f;--ribbon:#ffd98a"></span>
+            <span class="swatch__name">红金经典</span>
+          </button>
+          <button class="swatch" data-gift="emerald" type="button">
+            <span class="swatch__box" style="--box:#0f5b47;--ribbon:#d9f5e6"></span>
+            <span class="swatch__name">翡翠丝带</span>
+          </button>
+          <button class="swatch" data-gift="macaron" type="button">
+            <span class="swatch__box" style="--box:#f2b5c4;--ribbon:#fff0f5"></span>
+            <span class="swatch__name">粉雪马卡龙</span>
+          </button>
+          <button class="swatch" data-gift="ice" type="button">
+            <span class="swatch__box" style="--box:#8fd8ff;--ribbon:#f4fbff"></span>
+            <span class="swatch__name">冰蓝星尘</span>
+          </button>
+        </div>
+      </div>
+    </details>
+
+    <details class="sect" data-sect="gesture">
+      <summary>
+        <span class="sect__icon">☝</span>
+        <span class="sect__title">手势</span>
+        <span class="sect__meta" id="gesture-meta">摄像头关闭</span>
+        <svg class="sect__chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+      </summary>
+      <div class="sect__body">
+        <p class="sect__desc">所有识别都在本机完成，画面不会上传到任何服务器。</p>
+        <button id="btn-camera-toggle" class="btn btn--primary" type="button">开启摄像头</button>
+        <label class="field field--range">
+          <span class="field__label">识别灵敏度 <b id="gesture-sens-val">60</b></span>
+          <input id="gesture-sens" type="range" min="0" max="100" value="60" />
+        </label>
+        <div class="checkline">
+          <label class="check"><input id="mirror" type="checkbox" checked /><span>镜像预览</span></label>
+          <label class="check"><input id="auto-photo" type="checkbox" checked /><span>捏指自动弹照片</span></label>
+        </div>
+      </div>
+    </details>
+
+    <div class="panel__foot">
+      <button class="btn btn--ghost" id="btn-reset" type="button">恢复默认外观</button>
+      <span class="hint-text">设置会自动保存</span>
+    </div>
+  </div>
+</aside>
+
+<div class="scrim" id="scrim" hidden></div>
+
+<!-- 照片弹出层 -->
+<div class="photo-stage" id="photo-stage" hidden aria-live="polite">
+  <div class="photo-stage__glow" aria-hidden="true"></div>
+  <figure class="pop-card" id="pop-card">
+    <div class="pop-card__inner">
+      <img id="pop-image" alt="圣诞照片" />
+      <figcaption id="pop-caption">Merry Christmas</figcaption>
+    </div>
+  </figure>
+  <p class="photo-stage__hint">照片 5 秒后自动关闭 · 捏指或点击任意处关闭</p>
+</div>
+
+<!-- 开场 -->
+<div class="intro" id="intro">
+  <div class="intro__inner">
+    <p class="intro__eyebrow">Gesture · Light · Memory</p>
+    <h1 class="intro__title">
+      <span class="intro__cn">伸手</span>
+      <span class="intro__sub">就能拥有一棵圣诞树</span>
+    </h1>
+    <p class="intro__desc">一颗由九千粒星光长成的树。<br />握拳让它聚拢，摊手让它散作星尘，捏指让回忆从枝头飞出。</p>
+    <p class="intro__note">一指换配色 · 两指下雪 · 三指放烟花 · 右侧有全部手势说明</p>
+
+    <div class="intro__gestures">
+      <div class="intro-gesture"><span class="intro-gesture__icon">✊</span><b>握拳</b><i>汇聚成树</i></div>
+      <div class="intro-gesture"><span class="intro-gesture__icon">🖐</span><b>摊手</b><i>粒子散升</i></div>
+      <div class="intro-gesture"><span class="intro-gesture__icon">🤏</span><b>捏指</b><i>弹出照片</i></div>
+    </div>
+
+    <div class="intro__actions">
+      <button id="btn-start-camera" class="btn btn--primary btn--lg" type="button">
+        <span class="btn__spark" aria-hidden="true">✦</span>开启摄像头，伸手召唤
+      </button>
+      <button id="btn-start-mouse" class="btn btn--ghost btn--lg" type="button">先逛逛（鼠标模式）</button>
+    </div>
+
+    <p class="intro__fineprint" id="intro-fineprint">摄像头画面仅在本机分析，不上传、不录制。</p>
+  </div>
+  <div class="intro__foot">
+    <span>Made with starlight &amp; memories</span>
+    <span>2026</span>
+  </div>
+</div>
+
+<!-- 加载遮罩 -->
+<div class="loader" id="loader">
+  <div class="loader__orbit" aria-hidden="true"><i></i><i></i><i></i></div>
+  <p class="loader__text">正在点亮圣诞树…</p>
+</div>
+
+<!-- 提示气泡 -->
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script>
+/* 旧版微信内置浏览器兜底提示 */
+(function () {
+  try {
+    new Function('var a = {}; return a ?. b');
+    return;
+  } catch (err) {}
+  window.addEventListener('DOMContentLoaded', function () {
+    var tip = document.createElement('div');
+    tip.style.cssText =
+      'position:fixed;inset:0;z-index:9999;display:grid;place-items:center;background:#04070e;color:#f7f1e6;font:14px/1.9 system-ui,sans-serif;text-align:center;padding:24px';
+    tip.innerHTML =
+      '<div><p style="font-size:18px;margin:0 0 10px">微信内置浏览器版本过旧</p><p style="color:#b9b0a2;margin:0">请点右上角「···」→「在浏览器中打开」，<br>或用 Chrome / Safari 打开本页。</p></div>';
+    document.body.appendChild(tip);
+  });
+})();
+</script>
+<script type="module" src="./js/main.js"></script>
+</body>
+</html>
